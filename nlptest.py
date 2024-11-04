@@ -1,7 +1,7 @@
 from nltk.tokenize import word_tokenize
-from nltk.stem import PorterStemmer
+from nltk.corpus import stopwords
 from pandas import *
-import string
+import spacy
 from pandas import *
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
@@ -9,10 +9,15 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn import svm
+from sklearn.svm import LinearSVC
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+from scipy.sparse import hstack
 
-data = read_csv('data.csv', encoding='latin-1')
+nlp = spacy.load("en_core_web_sm")
+
+stop_words = set(stopwords.words('english'))  # Create a set of English stopwords for filtering
+
+data = read_csv('chris-preprocessed-data.csv', encoding='latin-1')
 
 reviews = data.iloc[:, 1]
 labels = data.iloc[:, 0]
@@ -87,17 +92,33 @@ def getOnlySentiment(tokens):
 
 features = []
 
-stop = False
 for r in reviews:
     tokens = word_tokenize(r)
-    tokens = [word for word in tokens if word not in string.punctuation]
     stemmed = [stem(word.lower()) for word in tokens]
     features.append([getPositiveCount(stemmed), getNegativeCount(stemmed), getOnlySentiment(stemmed)])
 
+tfidf_vectorizer = TfidfVectorizer()
+tfidf_matrix = tfidf_vectorizer.fit_transform(reviews)
+combined_features = hstack([features, tfidf_matrix])
 
-x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=0.3, random_state=42)
+x_train, x_test, y_train, y_test = train_test_split(combined_features, labels, test_size=0.3, random_state=42)
 
 classifier = KNeighborsClassifier(n_neighbors=3)
+classifier.fit(x_train, y_train)
+prediction = classifier.predict(x_test)
+print(accuracy_score(y_test, prediction))
+
+classifier = RandomForestClassifier(n_estimators=100, random_state=42)
+classifier.fit(x_train, y_train)
+prediction = classifier.predict(x_test)
+print(accuracy_score(y_test, prediction))
+
+classifier = DecisionTreeClassifier()
+classifier.fit(x_train, y_train)
+prediction = classifier.predict(x_test)
+print(accuracy_score(y_test, prediction))
+
+classifier = LinearSVC()
 classifier.fit(x_train, y_train)
 prediction = classifier.predict(x_test)
 print(accuracy_score(y_test, prediction))
