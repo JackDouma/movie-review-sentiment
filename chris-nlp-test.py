@@ -22,7 +22,8 @@ from sklearn.neighbors import KNeighborsClassifier
 
 nlp = spacy.load("en_core_web_sm")
 
-preprocessed_file = 'chris-preprocessed-data.csv'
+# preprocessed_file = 'chris-preprocessed-data.csv'
+preprocessed_file = 'prepro-data.csv'
 
 
 # 1. DATA PREPROCESSING
@@ -42,6 +43,7 @@ else:
 
 
     preprocessed_reviews = []
+    exclaims = []
 
     print("--> Preprocessing data:", end=' ')
 
@@ -70,6 +72,9 @@ else:
         # append preprocessed review as a single string
         preprocessed_reviews.append(' '.join(filtered_tokens))
 
+        # append amount of exclamation marks in the review
+        exclaims.append(review.count('!'))
+
         # used in progress bar
         iteration += 1
 
@@ -79,7 +84,8 @@ else:
     print(f"--> Saving preprocessed reviews and values to {preprocessed_file}...", end='')
     preprocessed_df = pd.DataFrame({
         'value': data['value'],
-        'review': preprocessed_reviews
+        'review': preprocessed_reviews,
+        'exclaim': exclaims
     })
     preprocessed_df.to_csv(preprocessed_file, index=False)
     print("Complete.")

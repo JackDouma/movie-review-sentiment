@@ -7,7 +7,6 @@ import spacy
 from pandas import *
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
@@ -23,10 +22,11 @@ stop_words = set(stopwords.words('english'))  # Create a set of English stopword
 
 vader = SentimentIntensityAnalyzer()
 
-data = read_csv('chris-preprocessed-data.csv', encoding='latin-1')
+data = read_csv('prepro-data.csv', encoding='latin-1')
 
-reviews = data.iloc[:, 1]
 labels = data.iloc[:, 0]
+reviews = data.iloc[:, 1]
+exclaims = data.iloc[:, 2]
 
 def stem(text):
     if text.endswith("ss") or (text.endswith("ly") and text != "only") or text.endswith("ed"):
@@ -47,7 +47,7 @@ positive_words = [
     "awesome", "outstanding", "enjoyable", "love", "recommend", 
     "satisfied", "best", "flawless", "beautiful", "worth", 
     "remarkable", "exciting", "refreshing", "exceptional", 
-    "pleasant", "liked", "helpful", "terrific", "good",
+    "pleasant", "liked", "helpful", "terrific", "good", "stunning"
 ]
 
 negative_words = [
@@ -56,7 +56,17 @@ negative_words = [
     "flawed", "problem", "regret", "boring", "dreadful", 
     "frustrating", "unacceptable", "mediocre", "negative", 
     "dislike", "unimpressive", "confusing", "dull", "lacking",
-    "unfortunate", "disappointed"
+    "unfortunate", "disappointed", "rough"
+]
+
+adverbs = [
+    "absolute", "amazing", "awful", "bare", "complete", "deep", "enormous",
+    "entire", "especial", "extreme", "fabulous", "fair", "frightful", 
+    "ful", "great", "hard", "high", "huge", "incredib", "insane", 
+    "intense", "literal", "mild", "moderate", "particular", "phenomenal", 
+    "pure", "quite", "rather", "real", "remarkab", "serious", "significant",
+    "slight", "so", "somewhat", "strong", "surprising", "terrib", "thorough", 
+    "total", "tremendous", "tru", "utter", "very", "virtual", "wild"
 ]
 
 doc = nlp(" ".join(positive_words))
@@ -68,12 +78,24 @@ def getOnlyCount(tokens):
     return len(list((i for i, n in enumerate(tokens) if n == 'only')))
 
 def getPositiveCount(tokens):
-    return sum(1 for word in tokens if word in lemmatized_positive)
+    sum = 0
+    for i in range(0, len(tokens)):
+        if tokens[i] in lemmatized_positive:
+            sum += 1
+            if i != 0 and tokens[i - 1] in adverbs:
+                sum += 1
+    return sum
 
 def getNegativeCount(tokens):
-    return sum(1 for word in tokens if word in lemmatized_negative)
+    sum = 0
+    for i in range(0, len(tokens)):
+        if tokens[i] in lemmatized_negative:
+            sum += 1
+            if i != 0 and tokens[i - 1] in adverbs:
+                sum += 1
+    return sum
 
-def getOnlySentiment(tokens):
+def getReverseSentiment(tokens):
     lines = []
     negatives = []
     result = 0
@@ -107,10 +129,12 @@ def getVaderScore(text):
 
 features = []
 
+i = 0
 for r in reviews:
     tokens = word_tokenize(r)
     stemmed = [stem(word.lower()) for word in tokens]
-    features.append([getPositiveCount(stemmed), getNegativeCount(stemmed), getOnlySentiment(stemmed), getVaderScore(r)])
+    features.append([getPositiveCount(stemmed), getNegativeCount(stemmed), getReverseSentiment(stemmed), getVaderScore(r) * (exclaims[i] + 1)])
+    i += 1
 
 tfidf_vectorizer = TfidfVectorizer()
 tfidf_matrix = tfidf_vectorizer.fit_transform(reviews)
@@ -118,22 +142,16 @@ combined_features = hstack([features, tfidf_matrix])
 
 x_train, x_test, y_train, y_test = train_test_split(combined_features, labels, test_size=0.3, random_state=42)
 
-classifier = KNeighborsClassifier(n_neighbors=3)
-classifier.fit(x_train, y_train)
-prediction = classifier.predict(x_test)
-print(accuracy_score(y_test, prediction))
+classifiers = {
+    "K-Nearest Neighbours": KNeighborsClassifier(n_neighbors=3),
+    "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42),
+    "Decision Tree": DecisionTreeClassifier(),
+    "Support Vector Machine": LinearSVC(dual=True)
+}
 
-classifier = RandomForestClassifier(n_estimators=100, random_state=42)
-classifier.fit(x_train, y_train)
-prediction = classifier.predict(x_test)
-print(accuracy_score(y_test, prediction))
-
-classifier = DecisionTreeClassifier()
-classifier.fit(x_train, y_train)
-prediction = classifier.predict(x_test)
-print(accuracy_score(y_test, prediction))
-
-classifier = LinearSVC(dual=True)
-classifier.fit(x_train, y_train)
-prediction = classifier.predict(x_test)
-print(accuracy_score(y_test, prediction))
+# fitting, predicting, and printing the accuracy for all the classifiers listed above
+for name, classifier in classifiers.items():
+    classifier.fit(x_train, y_train)
+    y_pred = classifier.predict(x_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    print("Accuracy on " + name + ":", accuracy)
