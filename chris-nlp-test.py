@@ -73,7 +73,7 @@ else:
         preprocessed_reviews.append(' '.join(filtered_tokens))
 
         # append amount of exclamation marks in the review
-        exclaims.append(review.count('!'))
+        exclaims.append(review_without_br.count('!'))
 
         # used in progress bar
         iteration += 1

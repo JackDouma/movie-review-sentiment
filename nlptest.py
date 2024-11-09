@@ -1,10 +1,10 @@
 import nltk
+from nltk import pos_tag
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from pandas import *
 import spacy
-from pandas import *
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from sklearn.neighbors import KNeighborsClassifier
@@ -15,6 +15,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from scipy.sparse import hstack
 
 # nltk.download('vader_lexicon')
+nltk.download('averaged_perceptron_tagger_eng')
 
 nlp = spacy.load("en_core_web_sm")
 
@@ -27,6 +28,7 @@ data = read_csv('prepro-data.csv', encoding='latin-1')
 labels = data.iloc[:, 0]
 reviews = data.iloc[:, 1]
 exclaims = data.iloc[:, 2]
+caps = data.iloc[:, 3]
 
 def stem(text):
     if text.endswith("ss") or (text.endswith("ly") and text != "only") or text.endswith("ed"):
@@ -89,7 +91,7 @@ def getPositiveCount(tokens):
 def getNegativeCount(tokens):
     sum = 0
     for i in range(0, len(tokens)):
-        if tokens[i] in lemmatized_negative:
+        if tokens[i] in lemmatized_negative or "**" in tokens[i]:
             sum += 1
             if i != 0 and tokens[i - 1] in adverbs:
                 sum += 1
@@ -127,13 +129,24 @@ def getVaderScore(text):
     else:
         return 1
 
+def getAdvToAdjRatio(text):
+    tags = pos_tag(text)
+    adjectives = 0
+    adverbs = 0
+    for word, tag in tags:
+        if tag.startswith("JJ"):
+            adjectives += 1
+        elif tag.startswith("RB"):
+            adverbs += 1
+    return adverbs / adjectives if adjectives > 0 else 0    
+
 features = []
 
 i = 0
 for r in reviews:
     tokens = word_tokenize(r)
     stemmed = [stem(word.lower()) for word in tokens]
-    features.append([getPositiveCount(stemmed), getNegativeCount(stemmed), getReverseSentiment(stemmed), getVaderScore(r) * (exclaims[i] + 1)])
+    features.append([getPositiveCount(stemmed), getNegativeCount(stemmed), getReverseSentiment(stemmed), getVaderScore(r) * (exclaims[i] + 1), getAdvToAdjRatio(stemmed)])
     i += 1
 
 tfidf_vectorizer = TfidfVectorizer()
