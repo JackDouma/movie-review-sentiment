@@ -1,3 +1,4 @@
+import warnings
 import nltk
 from nltk import pos_tag
 from nltk.tokenize import word_tokenize
@@ -11,11 +12,16 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import LinearSVC
+from sklearn.naive_bayes import MultinomialNB, GaussianNB
 from sklearn.feature_extraction.text import TfidfVectorizer
 from scipy.sparse import hstack
+from mlxtend.feature_selection import SequentialFeatureSelector as sfs
+import numpy as np
 
 # nltk.download('vader_lexicon')
-nltk.download('averaged_perceptron_tagger_eng')
+# nltk.download('averaged_perceptron_tagger_eng')
+
+warnings.filterwarnings('ignore')
 
 nlp = spacy.load("en_core_web_sm")
 
@@ -23,7 +29,7 @@ stop_words = set(stopwords.words('english'))  # Create a set of English stopword
 
 vader = SentimentIntensityAnalyzer()
 
-data = read_csv('prepro-data.csv', encoding='latin-1')
+data = read_csv('prepro-data2.csv', encoding='latin-1')
 
 labels = data.iloc[:, 0]
 reviews = data.iloc[:, 1]
@@ -172,11 +178,11 @@ for r in reviews:
                      len(stemmed), exclaims[i]])
     i += 1
 
-tfidf_vectorizer = TfidfVectorizer()
-tfidf_matrix = tfidf_vectorizer.fit_transform(reviews)
-combined_features = hstack([features, tfidf_matrix])
+# tfidf_vectorizer = TfidfVectorizer()
+# tfidf_matrix = tfidf_vectorizer.fit_transform(reviews)
+# combined_features = hstack([features, tfidf_matrix])
 
-x_train, x_test, y_train, y_test = train_test_split(combined_features, labels, test_size=0.3, random_state=42)
+# x_train, x_test, y_train, y_test = train_test_split(combined_features, labels, test_size=0.3, random_state=42)
 
 classifiers = {
     "K-Nearest Neighbours": KNeighborsClassifier(n_neighbors=3),
@@ -185,9 +191,40 @@ classifiers = {
     "Support Vector Machine": LinearSVC(dual=True)
 }
 
+scores = []
+selectedScores = []
+
 # fitting, predicting, and printing the accuracy for all the classifiers listed above
 for name, classifier in classifiers.items():
+    if isinstance(features, list):
+        features = np.array(features)
+
+    sfs1 = sfs(classifier, k_features=4, forward=False, verbose=0, scoring='accuracy')
+    sfs1 = sfs1.fit(features, labels)
+
+    feat_names = list(sfs1.k_feature_names_)
+
+    tfidf_vectorizer = TfidfVectorizer()
+    tfidf_matrix = tfidf_vectorizer.fit_transform(reviews)
+    combined_features = hstack([features, tfidf_matrix])
+
+    x_train, x_test, y_train, y_test = train_test_split(combined_features, labels, test_size=0.3, random_state=42)
     classifier.fit(x_train, y_train)
     y_pred = classifier.predict(x_test)
     accuracy = accuracy_score(y_test, y_pred)
     print("Accuracy on " + name + ":", accuracy)
+    scores.append(accuracy)
+
+    selected_indices = [int(i) for i in feat_names]
+    selected_features = features[:, selected_indices]
+    combined_features = hstack([selected_features, tfidf_matrix])
+
+    x_train, x_test, y_train, y_test = train_test_split(combined_features, labels, test_size=0.3, random_state=42)
+    classifier.fit(x_train, y_train)
+    y_pred = classifier.predict(x_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    print("Accuracy on " + name + ":", accuracy)
+    selectedScores.append(accuracy)
+
+print(scores)
+print(selectedScores)
