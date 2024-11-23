@@ -15,6 +15,6 @@ with open('data.csv', 'a') as file:
             words = open(path + "/" + f, encoding="utf-8")
             review = words.read()
             try:
-                w.writerow([value, review])
+                w.writerow([value, review, (f.split('.')[0])[-1]])
             except UnicodeEncodeError:
                 continue

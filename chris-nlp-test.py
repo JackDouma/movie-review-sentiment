@@ -30,7 +30,7 @@ from collections import Counter
 nlp = spacy.load("en_core_web_sm")
 
 # preprocessed_file = 'chris-preprocessed-data.csv'
-preprocessed_file = 'prepro-data.csv'
+preprocessed_file = 'prepro-data2.csv'
 
 
 # 1. DATA PREPROCESSING
@@ -65,6 +65,7 @@ else:
 
         # remove br tags
         review_without_br = review.replace('<br />', '')
+        review_without_exclaim = review.replace('!', ' ')
 
         doc = nlp(review_without_br)
 
@@ -92,6 +93,7 @@ else:
     preprocessed_df = pd.DataFrame({
         'value': data['value'],
         'review': preprocessed_reviews,
+        'score': data['score'],
         'exclaim': exclaims
     })
     preprocessed_df.to_csv(preprocessed_file, index=False)

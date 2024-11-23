@@ -27,8 +27,7 @@ data = read_csv('prepro-data.csv', encoding='latin-1')
 
 labels = data.iloc[:, 0]
 reviews = data.iloc[:, 1]
-exclaims = data.iloc[:, 2]
-caps = data.iloc[:, 3]
+exclaims = data.iloc[:, 3]
 
 def stem(text):
     if text.endswith("ss") or (text.endswith("ly") and text != "only") or text.endswith("ed"):
@@ -138,15 +137,39 @@ def getAdvToAdjRatio(text):
             adjectives += 1
         elif tag.startswith("RB"):
             adverbs += 1
-    return adverbs / adjectives if adjectives > 0 else 0    
+    return adverbs / adjectives if adjectives > 0 else 0
+
+def getAverageVaderScore(words):
+    total = 0
+    i = 0
+    for word in words:
+        total += vader.polarity_scores(word)['compound']
+        i += 1
+    return total / i if i > 0 else 0
 
 features = []
 
 i = 0
 for r in reviews:
+    nouns = []
+    adjectives = []
+    verbs = []
+    adverbs = []
     tokens = word_tokenize(r)
+    tags = pos_tag(tokens)
+    for word, tag in tags:
+        if tag.startswith("NN"):
+            nouns.append(word)
+        elif tag.startswith("JJ"):
+            adjectives.append(word)
+        elif tag.startswith("V"):
+            verbs.append(word)
+        elif tag.startswith("RB"):
+            adverbs.append(word)
     stemmed = [stem(word.lower()) for word in tokens]
-    features.append([getPositiveCount(stemmed), getNegativeCount(stemmed), getReverseSentiment(stemmed), getVaderScore(r) * (exclaims[i] + 1), getAdvToAdjRatio(stemmed)])
+    features.append([getPositiveCount(stemmed), getNegativeCount(stemmed), getReverseSentiment(stemmed), getAdvToAdjRatio(stemmed),
+                     getAverageVaderScore(nouns), getAverageVaderScore(adjectives), getAverageVaderScore(verbs), getAverageVaderScore(adverbs),
+                     len(stemmed), exclaims[i]])
     i += 1
 
 tfidf_vectorizer = TfidfVectorizer()
