@@ -110,8 +110,6 @@ tfidf_vectorizer = TfidfVectorizer()
 tfidf_matrix = tfidf_vectorizer.fit_transform(preprocessed_df['review'])
 
 
-
-
 # 3. TRAIN MODELS
 
 X_train, X_test, y_train, y_test = train_test_split(tfidf_matrix, preprocessed_df['value'], test_size=0.2, random_state=42)  
@@ -197,6 +195,13 @@ posNegPalette = {'Positive': 'green', 'Negative': 'red'}
 positiveReviews = preprocessed_df[preprocessed_df['value'] == 1]
 negativeReviews = preprocessed_df[preprocessed_df['value'] == 0]
 
+##### DISTRIBUTION OF SCORES #####
+sns.histplot(preprocessed_df['score'], bins=10, kde=True, color='purple')
+plt.title('Distribution of Review Scores')
+plt.xlabel('Score')
+plt.ylabel('Frequency')
+plt.show()
+
 ##### EXCLAMATION MARK GRAPH ######
 
 # create labels for graph
@@ -223,6 +228,12 @@ plt.ylabel('Frequency')
 plt.legend(title='Review Type')
 plt.show()
 
+sns.scatterplot(x=preprocessed_df['score'], y=preprocessed_df['exclaim'], alpha=0.5)
+plt.title('Score vs. Number of Exclamation Marks')
+plt.xlabel('Score')
+plt.ylabel('Number of Exclamation Marks')
+plt.show()
+
 ##### CHARACTER LENGTH GRAPH #####
 
 positiveReviews = preprocessed_df[preprocessed_df['value'] == 1]['review']
@@ -240,6 +251,13 @@ plt.xlabel('Review Length')
 plt.ylabel('Density')
 plt.legend()
 plt.xlim(0, 3000)
+plt.show()
+
+avg_length_by_score = preprocessed_df.groupby('score')['review'].apply(lambda x: x.str.len().mean())
+avg_length_by_score.plot(kind='bar', color='blue', alpha=0.7)
+plt.title('Average Review Length by Score')
+plt.xlabel('Score')
+plt.ylabel('Average Length')
 plt.show()
 
 ##### TOP TERMS USED IN REVIEWS #####
@@ -326,6 +344,16 @@ plt.ylabel('Words')
 
 plt.tight_layout()
 plt.show()
+
+bins = [1,2,3,4,7,8,9,10,float('inf')]
+labels = ['1', '2', '3', '4', '7', '8', '9', '10']
+preprocessed_df['score'] = pd.cut(preprocessed_df['score'], bins=bins, labels=labels)
+
+for group in preprocessed_df['score'].unique():
+    groupReviews = preprocessed_df[preprocessed_df['score_range'] == group]['review']
+    commonWords = getMostCommonWords(groupReviews, top_n=20)
+    print(f"Top words for {group} score range:", commonWords)
+
 
 ##### MOST COMMON PHRASES #####
 
