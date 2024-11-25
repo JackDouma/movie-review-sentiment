@@ -1,3 +1,5 @@
 test
 train
 .vscode
+*.csv
+*.png

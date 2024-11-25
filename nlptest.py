@@ -81,6 +81,7 @@ lemmatized_positive = [token.lemma_.lower() for token in doc]
 doc = nlp(" ".join(negative_words))
 lemmatized_negative = [token.lemma_.lower() for token in doc]
 
+# is not actually used
 def getOnlyCount(tokens):
     return len(list((i for i, n in enumerate(tokens) if n == 'only')))
 
@@ -104,13 +105,11 @@ def getNegativeCount(tokens):
 
 def getReverseSentiment(tokens):
     lines = []
-    negatives = []
     result = 0
     only = list((i for i, n in enumerate(tokens) if n == 'only'))
     for o in only:
         try:
             lines.append([tokens[o + 1], tokens[o + 2], tokens[o + 3], tokens[o - 1]])
-            negatives.append([tokens[o - 1]])
         except IndexError:
             continue
     for words in lines:
@@ -127,6 +126,7 @@ def getReverseSentiment(tokens):
                     result += 1
     return result
 
+# is not actually used
 def getVaderScore(text):
     compound = vader.polarity_scores(text)['compound']
     if compound >= 0:

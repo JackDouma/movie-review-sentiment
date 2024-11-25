@@ -10,6 +10,7 @@ allFiles = {
 
 with open('data.csv', 'a') as file:
     w = writer(file)
+    w.writerow(["value","review","score"])
     for value, path in allFiles.items():        
         for f in listdir(path):
             words = open(path + "/" + f, encoding="utf-8")
