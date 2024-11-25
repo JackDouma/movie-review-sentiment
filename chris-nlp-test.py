@@ -25,6 +25,7 @@ from sklearn.metrics import confusion_matrix
 from wordcloud import WordCloud
 from sklearn.feature_extraction.text import CountVectorizer
 from collections import Counter
+import plotly.graph_objects as go
 
 
 nlp = spacy.load("en_core_web_sm")
@@ -195,6 +196,8 @@ posNegPalette = {'Positive': 'green', 'Negative': 'red'}
 positiveReviews = preprocessed_df[preprocessed_df['value'] == 1]
 negativeReviews = preprocessed_df[preprocessed_df['value'] == 0]
 
+
+
 ##### DISTRIBUTION OF SCORES #####
 sns.histplot(preprocessed_df['score'], bins=10, kde=True, color='purple')
 plt.title('Distribution of Review Scores')
@@ -228,10 +231,15 @@ plt.ylabel('Frequency')
 plt.legend(title='Review Type')
 plt.show()
 
+
+
+# for scores 1-10
 sns.scatterplot(x=preprocessed_df['score'], y=preprocessed_df['exclaim'], alpha=0.5)
 plt.title('Score vs. Number of Exclamation Marks')
 plt.xlabel('Score')
 plt.ylabel('Number of Exclamation Marks')
+plt.xticks([1, 2, 3, 4, 7, 8, 9, 10])
+plt.xlim(1, 10)
 plt.show()
 
 ##### CHARACTER LENGTH GRAPH #####
@@ -308,16 +316,18 @@ for name, model in models.items():
 ##### MOST COMMON WORDS #####
 
 def getMostCommonWords(reviews, top_n=20):
+    excludeWords = {'movie', 'film', 'watch', 'know', 'thing', 'way', 'come'}
     vectorizer = CountVectorizer(stop_words='english', ngram_range=(1, 1))
     word_matrix = vectorizer.fit_transform(reviews)
     
     # sum up all word amounts
-    word_freq = word_matrix.sum(axis=0).A1
+    wordFreq = word_matrix.sum(axis=0).A1
     words = vectorizer.get_feature_names_out()
-    word_count = dict(zip(words, word_freq))
-    common_words = Counter(word_count).most_common(top_n)
+    wordCount = dict(zip(words, wordFreq))
+    filteredWordCount = {word: count for word, count in wordCount.items() if word not in excludeWords}
+    commonWords = Counter(filteredWordCount).most_common(top_n)
     
-    return common_words
+    return commonWords
 
 positiveCommonWords = getMostCommonWords(positiveReviews)
 negativeCommonWords = getMostCommonWords(negativeReviews)
@@ -345,15 +355,37 @@ plt.ylabel('Words')
 plt.tight_layout()
 plt.show()
 
-bins = [1,2,3,4,7,8,9,10,float('inf')]
-labels = ['1', '2', '3', '4', '7', '8', '9', '10']
-preprocessed_df['score'] = pd.cut(preprocessed_df['score'], bins=bins, labels=labels)
+common_words_by_score = {}
 
+# Process each score group
 for group in preprocessed_df['score'].unique():
-    groupReviews = preprocessed_df[preprocessed_df['score_range'] == group]['review']
-    commonWords = getMostCommonWords(groupReviews, top_n=20)
-    print(f"Top words for {group} score range:", commonWords)
+    groupReviews = preprocessed_df[preprocessed_df['score'] == group]['review']
+    
+    if groupReviews.empty:
+        print(f"No reviews found for score {group}. Skipping.")
+        continue  # Skip groups with no reviews
 
+    # Get most common words for this score group
+    common_words = getMostCommonWords(groupReviews, top_n=20)
+    common_words_by_score[group] = common_words
+
+# Prepare data for plotting
+plot_data = []
+for score, words in common_words_by_score.items():
+    for word, count in words:
+        plot_data.append({'Score': score, 'Word': word, 'Count': count})
+
+plot_df = pd.DataFrame(plot_data)
+
+# Plot the most common words by score
+plt.figure(figsize=(12, 8))
+sns.barplot(data=plot_df, x='Score', y='Count', hue='Word', palette='tab10')
+plt.title('Most Common Words by Score')
+plt.xlabel('Score')
+plt.ylabel('Word Frequency')
+plt.legend(title='Words', bbox_to_anchor=(1.05, 1), loc='upper left')
+plt.tight_layout()
+plt.show()
 
 ##### MOST COMMON PHRASES #####
 
@@ -396,3 +428,85 @@ plt.ylabel('Frequency')
 
 plt.tight_layout()
 plt.show()
+
+###### REVIEW LENGTH VS SCORE SANKEY #####
+avg_length_by_score = preprocessed_df.groupby('score')['review'].apply(lambda x: x.str.len().mean())
+
+# nodes
+score_labels = [str(score) for score in avg_length_by_score.index]
+lengths = avg_length_by_score.values
+nodes = list(set(score_labels) | set([f'{score} - Length' for score in score_labels]))
+
+# links
+links = []
+for score, length in zip(score_labels, lengths):
+    links.append({
+        'source': score_labels.index(str(score)),
+        'target': len(score_labels) + score_labels.index(str(score)),
+        'value': length
+    })
+
+# diagram
+fig = go.Figure(go.Sankey(
+    node=dict(
+        pad=15,
+        thickness=20,
+        line=dict(color="black", width=0.5),
+        label=nodes,
+        color="blue"
+    ),
+    link=dict(
+        source=[link['source'] for link in links],
+        target=[link['target'] for link in links],
+        value=[link['value'] for link in links],
+        color='rgba(0, 0, 255, 0.5)'
+    )
+))
+
+fig.update_layout(title_text="Review Length vs Score", font_size=10)
+fig.show()
+
+##### ! VS SCORE SANKEY #####
+
+bins = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, float('inf')]
+labels = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10+']
+preprocessed_df['exclaimBins'] = pd.cut(preprocessed_df['exclaim'], bins=bins, labels=labels, right=False)
+
+# calculate frequency of exclamation bins by score
+exclaim_bin_counts = preprocessed_df.groupby(['score', 'exclaimBins']).size().reset_index(name='count')
+
+# nodes
+score_labels = [str(score) for score in preprocessed_df['score'].unique()]
+exclaim_labels = labels
+nodes = score_labels + exclaim_labels
+
+# links
+links = []
+for _, row in exclaim_bin_counts.iterrows():
+    score_idx = score_labels.index(str(row['score']))
+    exclaim_idx = len(score_labels) + exclaim_labels.index(row['exclaimBins'])
+    links.append({
+        'source': score_idx,
+        'target': exclaim_idx,
+        'value': row['count']
+    })
+
+# diagram
+fig = go.Figure(go.Sankey(
+    node=dict(
+        pad=15,
+        thickness=20,
+        line=dict(color="black", width=0.5),
+        label=nodes,
+        color="purple"
+    ),
+    link=dict(
+        source=[link['source'] for link in links],
+        target=[link['target'] for link in links],
+        value=[link['value'] for link in links],
+        color='rgba(255, 0, 0, 0.5)' 
+    )
+))
+
+fig.update_layout(title_text="Exclamation Marks vs Score", font_size=10)
+fig.show()
