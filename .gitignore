@@ -1,5 +1,7 @@
-test
-train
+test/*
+train/*
+!train/neg
+!train/pos
 .vscode
 *.csv
 *.png
