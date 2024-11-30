@@ -39,6 +39,9 @@ nlp = spacy.load("en_core_web_sm")
 # create a list of English stopwords for filtering in getMostCommonWords and getMostCommonPhrases functions
 stop_words = set(stopwords.words('english'))
 
+# initialize a vader object
+vader = SentimentIntensityAnalyzer()
+
 
 
 #########################
