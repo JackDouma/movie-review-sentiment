@@ -48,7 +48,7 @@ vader = SentimentIntensityAnalyzer()
 # 1. DATA PREPROCESSING #
 #########################
 
-print()
+print("\n1. DATA PREPROCESSING")
 
 # dictionary maps sentiment labels to the corresponding directories containing the source data from Kaggle
 allFiles = {
@@ -64,7 +64,7 @@ originalFile = "data2.csv"
 #   2. Review (text content of the movie review)
 #   3. Score (star rating of movie from 1-10)
 if not os.path.exists(originalFile):
-    print("--> Converting source data to csv...", end='')
+    print("   --> Converting source data to csv...", end='')
     with open(originalFile, 'a') as file:
         w = writer(file)
         w.writerow(["value","review","score"])
@@ -78,7 +78,7 @@ if not os.path.exists(originalFile):
                     continue
     print("Complete.")
 else:
-    print(f"--> Source data already converted to csv in {originalFile}")
+    print(f"   --> Source data already converted to csv in {originalFile}.")
 
 
 # define the name of the file containing the preprocessed data
@@ -86,13 +86,13 @@ preprocessed_file = 'processed-data.csv'
 
 # if the preprocessed data file exists, then load it
 if os.path.exists(preprocessed_file):
-    print(f"--> Loading preprocessed data from {preprocessed_file}...", end='')
+    print(f"   --> Loading preprocessed data from {preprocessed_file} into DataFrame...", end='')
     preprocessed_df = pd.read_csv(preprocessed_file)
     print("Complete.")
 
 # otherwise, preprocess the data
 else:
-    # define the name of the file containing the preprocessed data
+    # read the original data into a DataFrame
     data = pd.read_csv(originalFile, encoding='latin-1')
 
     # console progress bar variables (preprocessing can be lengthy)
@@ -103,7 +103,7 @@ else:
     preprocessed_reviews = []
     exclaims = []
 
-    print("--> Preprocessing data:", end=' ')
+    print("   --> Preprocessing data:", end=' ')
 
     for review in data['review']:
 
@@ -139,7 +139,7 @@ else:
     print("Complete.")
 
     # save preprocessed reviews to a CSV file
-    print(f"--> Saving preprocessed data to {preprocessed_file}...", end='')
+    print(f"   --> Saving preprocessed data to {preprocessed_file}...", end='')
     preprocessed_df = pd.DataFrame({
         'value': data['value'],
         'review': preprocessed_reviews,
@@ -155,15 +155,17 @@ else:
 # 2. FEATURE EXTRACTION USING MANUAL FEATURES AND TF-IDF SCORES #
 #################################################################
 
-# read the newly formatted .csv file
-data = read_csv('processed-data.csv', encoding='latin-1')
+print("2. FEATURE EXTRACTION USING MANUAL FEATURES AND TF-IDF SCORES")
 
-print("hello")
+# read the newly formatted .csv file
+print(f"   --> Reading data from {preprocessed_file}...", end='')
+data = read_csv(preprocessed_file, encoding='latin-1')
 
 # get the values from the .csv
 labels = data.iloc[:, 0]
 reviews = data.iloc[:, 1]
 exclaims = data.iloc[:, 3]
+print("Complete.")
 
 # method to stem a given word
 def stem(text):
@@ -211,10 +213,12 @@ adverb_words = [
 ]
 
 # lemmatizing all the positive and negative words above
+print(f"   --> Lemmatizing lists of positive and negative words...", end='')
 doc = nlp(" ".join(positive_words))
 lemmatized_positive = [token.lemma_.lower() for token in doc]
 doc = nlp(" ".join(negative_words))
 lemmatized_negative = [token.lemma_.lower() for token in doc]
+print("Complete.")
 
 # return the amount of times the word "only" occurs in a string (not actually used)
 def getOnlyCount(tokens):
@@ -297,6 +301,9 @@ def getAverageVaderScore(words):
         i += 1
     return total / i if i > 0 else 0
 
+
+print("   --> Extracting numerical features from reviews...", end='')
+
 # generating features
 features = []
 i = 0
@@ -328,16 +335,22 @@ for r in reviews:
                      getAverageVaderScore(nouns), getAverageVaderScore(adjectives), getAverageVaderScore(verbs), getAverageVaderScore(adverbs),
                      len(stemmed), exclaims[i]])
     i += 1
+    
+print("Complete.")
 
 # retrieving the TF-IDF scores of the reviews to be used by the classifiers later
+print("   --> Converting the reviews into a TF-IDF matrix...", end='')
 tfidf_vectorizer = TfidfVectorizer()
 tfidf_matrix = tfidf_vectorizer.fit_transform(reviews)
+print("Complete.")
 
 
 
 #####################################
 # 3. TRAINING AND EVALUATING MODELS #
 #####################################
+
+print("3. TRAINING AND EVALUATING MODELS")
 
 # creating classifiers
 classifiers = {
@@ -352,8 +365,11 @@ scores = {}
 selectedScores = {}
 x_tests = {}
 
+print("   --> Calculating and printing accuracy for various classifiers:")
+
 # fitting, predicting, and printing the accuracy for all the classifiers listed above
 for name, classifier in classifiers.items():
+    print(f"       Initial accuracy on {name}".ljust(68, "."), end='')
 
     # combining the manual features with the TF-IDF scores
     combined_features = hstack([features, tfidf_matrix])
@@ -363,9 +379,10 @@ for name, classifier in classifiers.items():
     classifier.fit(x_train, y_train)
     y_pred = classifier.predict(x_test)
     accuracy = accuracy_score(y_test, y_pred)
-    print("Accuracy on " + name + ":", accuracy)
+    print(accuracy)
     scores[name] = accuracy
 
+    print(f"       Accuracy on {name} after feature selection".ljust(68, "."), end='')
     # turn features into a numpy array
     if isinstance(features, list):
         features = np.array(features)
@@ -388,7 +405,7 @@ for name, classifier in classifiers.items():
     classifier.fit(x_train, y_train)
     y_pred = classifier.predict(x_test)
     accuracy = accuracy_score(y_test, y_pred)
-    print("Accuracy on " + name + ":", accuracy)
+    print(accuracy)
     selectedScores[name] = accuracy
 
 
@@ -396,6 +413,8 @@ for name, classifier in classifiers.items():
 #####################
 # 4. VISUALIZATIONS #
 #####################
+
+print("4. VISUALIZATIONS")
 
 preprocessed_lengths = preprocessed_df['review'].str.len()
 posNegPalette = {'Positive': 'green', 'Negative': 'red'}
@@ -405,13 +424,17 @@ negativeReviews = preprocessed_df[preprocessed_df['value'] == 0]
 
 
 ##### DISTRIBUTION OF SCORES #####
+print("   --> Generating distribution of review scores histogram...", end='')
+
 sns.histplot(preprocessed_df['score'], bins=10, kde=True, color='purple')
 plt.title('Distribution of Review Scores')
 plt.xlabel('Score')
 plt.ylabel('Frequency')
+print("Complete.")
 plt.show()
 
 ##### EXCLAMATION MARK GRAPH ######
+print("   --> Generating exclamation mark bar graph...", end='')
 
 # create labels for graph
 bins = [0,1,2,3,4,5,6,7,8,9,10, float('inf')]
@@ -435,20 +458,23 @@ plt.title('Distribution of Exclamation Marks in Positive and Negative Reviews')
 plt.xlabel('Number of Exclamation Marks')
 plt.ylabel('Frequency')
 plt.legend(title='Review Type')
+print("Complete.")
 plt.show()
 
 
-
 # for scores 1-10
+print("   --> Generating score vs. number of exclamation marks scatter plot...", end='')
 sns.scatterplot(x=preprocessed_df['score'], y=preprocessed_df['exclaim'], alpha=0.5)
 plt.title('Score vs. Number of Exclamation Marks')
 plt.xlabel('Score')
 plt.ylabel('Number of Exclamation Marks')
 plt.xticks([1, 2, 3, 4, 7, 8, 9, 10])
 plt.xlim(1, 10)
+print("Complete.")
 plt.show()
 
 ##### CHARACTER LENGTH GRAPH #####
+print("   --> Generating review length distribution KDE plot...", end='')
 
 positiveReviews = preprocessed_df[preprocessed_df['value'] == 1]['review']
 negativeReviews = preprocessed_df[preprocessed_df['value'] == 0]['review']
@@ -465,16 +491,20 @@ plt.xlabel('Review Length')
 plt.ylabel('Density')
 plt.legend()
 plt.xlim(0, 3000)
+print("Complete.")
 plt.show()
 
+print("   --> Generating average review length bar graph...", end='')
 avg_length_by_score = preprocessed_df.groupby('score')['review'].apply(lambda x: x.str.len().mean())
 avg_length_by_score.plot(kind='bar', color='blue', alpha=0.7)
 plt.title('Average Review Length by Score')
 plt.xlabel('Score')
 plt.ylabel('Average Length')
+print("Complete.")
 plt.show()
 
 ##### TOP TERMS USED IN REVIEWS #####
+print("   --> Generating top 25 terms bar graph...", end='')
 
 ## using tfidf
 featureNames = tfidf_vectorizer.get_feature_names_out()
@@ -492,9 +522,11 @@ sns.barplot(x=topScores, y=topTerms, palette="viridis")
 plt.title('Top 25 Terms')
 plt.xlabel('Score')
 plt.ylabel('Terms')
+print("Complete.")
 plt.show()
 
 ##### MODEL ACCURACY COMPARISON #####
+print("   --> Generating model accuracy comparison before backwards selection bar graph...", end='')
 
 plt.figure(figsize=(10, 6))
 sns.barplot(x=list(scores.values()), y=list(scores.keys()), palette='coolwarm')
@@ -502,20 +534,25 @@ plt.title('Model Accuracy Comparison (Before Backwards Selection)')
 plt.xlabel('Accuracy')
 plt.ylabel('Models')
 plt.xlim(0.7, 1.0)
+print("Complete.")
 plt.show()
 
+
+print("   --> Generating model accuracy comparison after backwards selection bar graph...", end='')
 plt.figure(figsize=(10, 6))
 sns.barplot(x=list(selectedScores.values()), y=list(selectedScores.keys()), palette='coolwarm')
 plt.title('Model Accuracy Comparison (After Backwards Selection)')
 plt.xlabel('Accuracy')
 plt.ylabel('Models')
 plt.xlim(0.7, 1.0)
+print("Complete.")
 plt.show()
 
 ##### CONFUSION MATRIX OF EACH MODEL #####
 
 # the following will provide true pos, true neg, false pos, false neg of each model
 for name, model in classifiers.items():
+    print(f"   --> Generating confusion matrix for {name}...", end='')
     y_pred = model.predict(x_tests[name])
     cm = confusion_matrix(y_test, y_pred)
 
@@ -524,10 +561,12 @@ for name, model in classifiers.items():
     plt.title(f'Confusion Matrix for {name}')
     plt.xlabel('Predicted Labels')
     plt.ylabel('True Labels')
+    print("Complete.")
     plt.show()
     
     
 ##### MOST COMMON WORDS #####
+print("   --> Generating top 20 most common words bar graph...", end='')
 
 def getMostCommonWords(reviews, top_n=20):
     excludeWords = {'movie', 'film', 'watch', 'know', 'thing', 'way', 'come'}
@@ -549,7 +588,6 @@ positiveWords, positiveCount = zip(*positiveCommonWords)
 negativeWords, negativeCount = zip(*negativeCommonWords)
 
 # plot results
-
 plt.figure(figsize=(16, 10))
 
 # positive
@@ -567,12 +605,15 @@ plt.xlabel('Word Count')
 plt.ylabel('Words')
 
 plt.tight_layout()
+print("Complete.")
 plt.show()
 
 common_words_by_score = {}
 
 # Process each score group
+print(f"   --> Grouping reviews by score and identifying most common words:")
 for group in preprocessed_df['score'].unique():
+    print(f"       Grouping reviews with score {group}...", end='')
     groupReviews = preprocessed_df[preprocessed_df['score'] == group]['review']
     
     if groupReviews.empty:
@@ -582,6 +623,9 @@ for group in preprocessed_df['score'].unique():
     # Get most common words for this score group
     common_words = getMostCommonWords(groupReviews, top_n=20)
     common_words_by_score[group] = common_words
+    print("Complete.")
+
+print("   --> Generating most common words by score bar graph...", end='')
 
 # Prepare data for plotting
 plot_data = []
@@ -599,9 +643,11 @@ plt.xlabel('Score')
 plt.ylabel('Word Frequency')
 plt.legend(title='Words', bbox_to_anchor=(1.05, 1), loc='upper left')
 plt.tight_layout()
+print("Complete.")
 plt.show()
 
 ##### MOST COMMON PHRASES #####
+print("   --> Generating top 20 phrases bar graph...", end='')
 
 def getMostCommonPhrases(reviews, top_n=20):
     # use CountVectorizer to count phrases
@@ -623,7 +669,6 @@ positivePhrases, positiveCount = zip(*positiveTopPhrases)
 negativePhrases, negativeCount = zip(*negativeTopPhrases)
 
 # plot results
-
 plt.figure(figsize=(16, 10))
 
 # positive
@@ -641,9 +686,12 @@ plt.xlabel('Phrase')
 plt.ylabel('Frequency')
 
 plt.tight_layout()
+print("Complete.")
 plt.show()
 
 ###### REVIEW LENGTH VS SCORE SANKEY #####
+print("   --> Generating review length vs score sankey diagram (opens in browser)...", end='')
+
 avg_length_by_score = preprocessed_df.groupby('score')['review'].apply(lambda x: x.str.len().mean())
 
 # nodes
@@ -678,9 +726,11 @@ fig = go.Figure(go.Sankey(
 ))
 
 fig.update_layout(title_text="Review Length vs Score", font_size=10)
+print("Complete.")
 fig.show()
 
 ##### ! VS SCORE SANKEY #####
+print("   --> Generating exclamation marks vs score sankey diagram (opens in browser)...", end='')
 
 bins = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, float('inf')]
 labels = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10+']
@@ -723,4 +773,5 @@ fig = go.Figure(go.Sankey(
 ))
 
 fig.update_layout(title_text="Exclamation Marks vs Score", font_size=10)
+print("Complete.")
 fig.show()
