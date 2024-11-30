@@ -57,7 +57,7 @@ allFiles = {
 }
 
 # define the name of the csv file containing data before preprocessing
-originalFile = "data2.csv"
+originalFile = "data-before-preprocessing.csv"
 
 # if not already done, convert data from multiple source files (from Kaggle) to a single csv with columns:
 #   1. Value (0 for negative sentiment, 1 for positive sentiment)
@@ -82,7 +82,7 @@ else:
 
 
 # define the name of the file containing the preprocessed data
-preprocessed_file = 'processed-data.csv'
+preprocessed_file = 'data-after-preprocessing.csv'
 
 # if the preprocessed data file exists, then load it
 if os.path.exists(preprocessed_file):
